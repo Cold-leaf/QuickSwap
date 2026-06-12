@@ -428,59 +428,85 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
             .ToList()!;
     }
 
-    private async Task RunWithProgress(string action, List<AppEntry> apps, Action<AppEntry> act)
+    private async Task RunWithProgress(string action, List<AppEntry> apps, Func<AppEntry, bool> act)
     {
         _launchBtn.Enabled = false;
         _closeBtn.Enabled = false;
         _progress.Visible = true;
         _progress.Style = ProgressBarStyle.Marquee;
 
+        var failed = new List<string>();
         for (int i = 0; i < apps.Count; i++)
         {
-            SetStatus($"正在{action} {apps[i].Name}...");
             var app = apps[i];
-            await Task.Run(() => act(app));
-            await Task.Delay(300); // small gap so the user can read the status
+            SetStatus($"正在{action} {app.Name}...");
+            var ok = await Task.Run(() => act(app));
+            if (!ok) failed.Add(app.Name);
+            await Task.Delay(300);
         }
 
         _progress.Visible = false;
-        SetStatus($"{action}完成 — 共处理 {apps.Count} 个应用");
+        var msg = $"{action}完成 — 共处理 {apps.Count} 个应用";
+        if (failed.Count > 0)
+            msg += $"（{string.Join("、", failed)} 未能{action}）";
+        SetStatus(msg);
         RefreshRunningStatus();
         _launchBtn.Enabled = true;
         _closeBtn.Enabled = true;
     }
 
-    private static void LaunchApp(AppEntry app)
+    private static bool LaunchApp(AppEntry app)
     {
         try
         {
-            if (string.IsNullOrEmpty(app.Path)) return;
+            if (string.IsNullOrEmpty(app.Path)) return false;
             var psi = new ProcessStartInfo(app.Path) { UseShellExecute = true };
             Process.Start(psi);
+            return true;
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Failed to launch {app.Name}: {ex.Message}");
-        }
+        catch { return false; }
     }
 
-    private static void CloseApp(AppEntry app)
+    private static bool CloseApp(AppEntry app)
     {
-        if (string.IsNullOrEmpty(app.Process)) return;
-        var name = Path.GetFileNameWithoutExtension(app.Process);
-        var procs = Process.GetProcessesByName(name);
-        if (procs.Length == 0) return;
-
+        if (string.IsNullOrEmpty(app.Process)) return false;
+        var procName = Path.GetFileNameWithoutExtension(app.Process);
+        // try CloseMainWindow first (most gentle)
+        var procs = Process.GetProcessesByName(procName);
+        var anyAlive = false;
         foreach (var p in procs)
         {
             try
             {
                 if (p.HasExited) continue;
                 p.CloseMainWindow();
-                p.WaitForExit(5000);
+                p.WaitForExit(3000);
+                if (!p.HasExited) anyAlive = true;
+            }
+            catch { anyAlive = true; }
+        }
+
+        // if still running, use taskkill /IM (also gentle, but reaches all windows)
+        if (anyAlive)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "taskkill",
+                    Arguments = $"/IM \"{app.Process}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                using var p = Process.Start(psi);
+                p?.WaitForExit(8000);
             }
             catch { }
         }
+
+        // check if anything is still alive
+        var remaining = Process.GetProcessesByName(procName);
+        return remaining.Length == 0;
     }
 
     private void SetStatus(string text)
