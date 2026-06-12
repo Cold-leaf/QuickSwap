@@ -275,20 +275,20 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
         Controls.Add(_grid);
 
         // -- bottom --
-        var botPanel = new Panel { Dock = DockStyle.Bottom, Height = 70, Padding = new Padding(pad) };
+        var botPanel = new Panel { Dock = DockStyle.Bottom, Height = 76, Padding = new Padding(pad) };
 
         var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
-        _addBtn = new Button { Text = "添加应用", Width = 80 };
+        _addBtn = new Button { Text = "添加应用", Width = 88, Height = 28 };
         _addBtn.Click += (_, _) => AddApp();
-        _editBtn = new Button { Text = "编辑", Width = 60 };
+        _editBtn = new Button { Text = "编辑", Width = 64, Height = 28 };
         _editBtn.Click += (_, _) => EditSelectedApp();
-        _deleteBtn = new Button { Text = "删除", Width = 60 };
+        _deleteBtn = new Button { Text = "删除", Width = 64, Height = 28 };
         _deleteBtn.Click += (_, _) => DeleteSelectedApp();
         btnPanel.Controls.AddRange([_addBtn, _editBtn, _deleteBtn]);
 
-        var selectAll = new Button { Text = "全选", Width = 50 };
+        var selectAll = new Button { Text = "全选", Width = 64, Height = 28 };
         selectAll.Click += (_, _) => SetAllChecked(true);
-        var selectNone = new Button { Text = "全不选", Width = 60 };
+        var selectNone = new Button { Text = "全不选", Width = 76, Height = 28 };
         selectNone.Click += (_, _) => SetAllChecked(false);
         btnPanel.Controls.AddRange([selectAll, selectNone]);
 
