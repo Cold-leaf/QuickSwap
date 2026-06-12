@@ -377,8 +377,13 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
 
     private void DeleteSelectedApp()
     {
-        var selected = SelectedApps();
-        if (selected.Count == 0) return;
+        var selected = CheckedApps();
+        if (selected.Count == 0)
+        {
+            MessageBox.Show(this, "请先勾选要删除的应用。", "提示",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
         var names = string.Join("、", selected.Select(a => a.Name));
         var ok = MessageBox.Show(this, $"确认从列表删除 {names}？", "确认",
             MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
@@ -582,62 +587,57 @@ public partial class AppEditForm : Form
         var pad = 12;
 
         // left: discovered apps
-        var left = new Panel { Location = new Point(pad, pad), Size = new Size(280, 320) };
-        left.Controls.Add(new Label { Text = "从开始菜单选择（双击添加）：", AutoSize = true, Location = new Point(0, 0) });
-
-        _txtSearch = new TextBox { Location = new Point(0, 22), Width = 275, PlaceholderText = "输入关键词过滤..." };
+        var left = new Panel { Dock = DockStyle.Left, Width = 280, Padding = new Padding(pad, pad, 6, 0) };
+        var lblLeft = new Label { Text = "从开始菜单选择（双击添加）：", AutoSize = true, Dock = DockStyle.Top };
+        left.Controls.Add(lblLeft);
+        _txtSearch = new TextBox { Dock = DockStyle.Top, PlaceholderText = "输入关键词过滤..." };
         _txtSearch.TextChanged += (_, _) => FilterDiscovered();
         left.Controls.Add(_txtSearch);
-
-        _discoveredList = new ListBox
-        {
-            Location = new Point(0, 50), Width = 275, Height = 265, IntegralHeight = false,
-            DisplayMember = "Key",
-        };
+        _discoveredList = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, DisplayMember = "Key" };
         _discoveredList.MouseDoubleClick += (_, _) => PickDiscovered();
         left.Controls.Add(_discoveredList);
         FillDiscovered("");
 
-        Controls.Add(left);
-
         // right: manual fields
-        var right = new Panel { Location = new Point(304, pad), Size = new Size(270, 260) };
-
-        _txtName = AddField(right, "名称：", 0, 265);
-        _txtPath = AddField(right, "路径：", 56, 225);
-        _btnBrowse = new Button { Text = "...", Location = new Point(235, 77), Width = 30, Height = 23 };
-        _btnBrowse.Click += (_, _) => BrowsePath();
-        right.Controls.Add(_btnBrowse);
-
-        _txtProcess = AddField(right, "进程名：", 112, 265, "如 Steam.exe");
+        var right = new Panel { Dock = DockStyle.Fill, Padding = new Padding(6, pad, pad, 0) };
+        _txtName = AddDockedField(right, "名称：", 0);
+        var pathRow = AddDockedField(right, "路径：", 56);
+        _txtPath = pathRow.tb;
+        _btnBrowse = new Button { Text = "...", Location = new Point(pathRow.panel.Width - 34, 0), Width = 30, Height = 23, Anchor = AnchorStyles.Top | AnchorStyles.Right };
+        pathRow.panel.Controls.Add(_btnBrowse);
+        (_txtProcess, _) = AddDockedField(right, "进程名：", 112, "如 Steam.exe");
         _txtPath.TextChanged += (_, _) =>
         {
             if (string.IsNullOrEmpty(_txtProcess.Text) && !string.IsNullOrEmpty(_txtPath.Text))
                 _txtProcess.Text = Path.GetFileName(_txtPath.Text);
         };
 
-        Controls.Add(right);
-
-        // OK / Cancel
+        // bottom: buttons
+        var bottom = new Panel { Dock = DockStyle.Bottom, Height = 52, Padding = new Padding(pad, 8, pad, pad) };
         var btnOK = new Button
         {
-            Text = "确定", Location = new Point(376, 350), Size = new Size(88, 28),
+            Text = "确定", Size = new Size(88, 28), Dock = DockStyle.Right, Margin = new Padding(8, 0, 0, 0),
             BackColor = Color.SteelBlue, ForeColor = Color.White,
         };
         btnOK.Click += (_, _) => Commit();
-        Controls.Add(btnOK);
-
-        var btnCancel = new Button { Text = "取消", Location = new Point(476, 350), Size = new Size(88, 28) };
+        bottom.Controls.Add(btnOK);
+        var btnCancel = new Button { Text = "取消", Size = new Size(88, 28), Dock = DockStyle.Right };
         btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
-        Controls.Add(btnCancel);
+        bottom.Controls.Add(btnCancel);
+
+        Controls.Add(right);
+        Controls.Add(left);
+        Controls.Add(bottom);
     }
 
-    private static TextBox AddField(Control parent, string label, int y, int width, string? placeholder = null)
+    private static (TextBox tb, Panel panel) AddDockedField(Control parent, string label, int y, string? placeholder = null)
     {
-        parent.Controls.Add(new Label { Text = label, AutoSize = true, Location = new Point(0, y) });
-        var tb = new TextBox { Location = new Point(0, y + 20), Width = width, PlaceholderText = placeholder };
-        parent.Controls.Add(tb);
-        return tb;
+        var panel = new Panel { Location = new Point(0, y), Size = new Size(parent.Width - 12, 46), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+        panel.Controls.Add(new Label { Text = label, AutoSize = true, Location = new Point(0, 0) });
+        var tb = new TextBox { Location = new Point(0, 20), Width = panel.Width - 38, PlaceholderText = placeholder, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+        panel.Controls.Add(tb);
+        parent.Controls.Add(panel);
+        return (tb, panel);
     }
 
     private void FillFrom(AppEntry a)
