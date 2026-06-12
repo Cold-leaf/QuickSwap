@@ -600,7 +600,7 @@ public partial class AppEditForm : Form
 
         // right: manual fields
         var right = new Panel { Dock = DockStyle.Fill, Padding = new Padding(6, pad, pad, 0) };
-        _txtName = AddDockedField(right, "名称：", 0);
+        (_txtName, _) = AddDockedField(right, "名称：", 0);
         var pathRow = AddDockedField(right, "路径：", 56);
         _txtPath = pathRow.tb;
         _btnBrowse = new Button { Text = "...", Location = new Point(pathRow.panel.Width - 34, 0), Width = 30, Height = 23, Anchor = AnchorStyles.Top | AnchorStyles.Right };
