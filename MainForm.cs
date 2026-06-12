@@ -354,7 +354,8 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
 
     private void AddApp()
     {
-        using var dlg = new AppEditForm(_discovered, null);
+        var existing = _config.Apps.Select(a => a.Name).ToHashSet();
+        using var dlg = new AppEditForm(_discovered, null, existing);
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         _config.Apps.Add(dlg.Result);
         SaveConfig();
@@ -366,7 +367,8 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
         var app = SelectedApp();
         if (app == null) return;
         var idx = _config.Apps.IndexOf(app);
-        using var dlg = new AppEditForm(_discovered, app);
+        var existing = _config.Apps.Where(a => a != app).Select(a => a.Name).ToHashSet();
+        using var dlg = new AppEditForm(_discovered, app, existing);
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         _config.Apps[idx] = dlg.Result;
         SaveConfig();
@@ -546,6 +548,7 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
 public partial class AppEditForm : Form
 {
     private Dictionary<string, string> _discovered;
+    private HashSet<string> _existingNames;
     private AppEntry _source;
 
     private TextBox _txtSearch = null!;
@@ -555,14 +558,15 @@ public partial class AppEditForm : Form
 
     public AppEntry Result { get; private set; } = new();
 
-    public AppEditForm(Dictionary<string, string> discovered, AppEntry? source)
+    public AppEditForm(Dictionary<string, string> discovered, AppEntry? source, HashSet<string> existingNames)
     {
         _discovered = discovered;
+        _existingNames = existingNames;
         _source = source ?? new AppEntry();
         Result = new AppEntry { Name = _source.Name, Path = _source.Path, Process = _source.Process };
 
         Text = source == null ? "添加应用" : "编辑应用";
-        Size = new Size(560, 420);
+        Size = new Size(600, 420);
         StartPosition = FormStartPosition.CenterParent;
         Font = new Font("Microsoft YaHei UI", 9F);
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -578,16 +582,16 @@ public partial class AppEditForm : Form
         var pad = 12;
 
         // left: discovered apps
-        var left = new Panel { Location = new Point(pad, pad), Size = new Size(260, 290) };
+        var left = new Panel { Location = new Point(pad, pad), Size = new Size(280, 320) };
         left.Controls.Add(new Label { Text = "从开始菜单选择（双击添加）：", AutoSize = true, Location = new Point(0, 0) });
 
-        _txtSearch = new TextBox { Location = new Point(0, 22), Width = 258, PlaceholderText = "输入关键词过滤..." };
+        _txtSearch = new TextBox { Location = new Point(0, 22), Width = 275, PlaceholderText = "输入关键词过滤..." };
         _txtSearch.TextChanged += (_, _) => FilterDiscovered();
         left.Controls.Add(_txtSearch);
 
         _discoveredList = new ListBox
         {
-            Location = new Point(0, 50), Width = 258, Height = 238, IntegralHeight = false,
+            Location = new Point(0, 50), Width = 275, Height = 265, IntegralHeight = false,
             DisplayMember = "Key",
         };
         _discoveredList.MouseDoubleClick += (_, _) => PickDiscovered();
@@ -597,15 +601,15 @@ public partial class AppEditForm : Form
         Controls.Add(left);
 
         // right: manual fields
-        var right = new Panel { Location = new Point(284, pad), Size = new Size(258, 260) };
+        var right = new Panel { Location = new Point(304, pad), Size = new Size(270, 260) };
 
-        _txtName = AddField(right, "名称：", 0, 242);
-        _txtPath = AddField(right, "路径：", 56, 164);
-        _btnBrowse = new Button { Text = "...", Location = new Point(226, 77), Width = 30, Height = 23 };
+        _txtName = AddField(right, "名称：", 0, 265);
+        _txtPath = AddField(right, "路径：", 56, 225);
+        _btnBrowse = new Button { Text = "...", Location = new Point(235, 77), Width = 30, Height = 23 };
         _btnBrowse.Click += (_, _) => BrowsePath();
         right.Controls.Add(_btnBrowse);
 
-        _txtProcess = AddField(right, "进程名：", 112, 242, "如 Steam.exe");
+        _txtProcess = AddField(right, "进程名：", 112, 265, "如 Steam.exe");
         _txtPath.TextChanged += (_, _) =>
         {
             if (string.IsNullOrEmpty(_txtProcess.Text) && !string.IsNullOrEmpty(_txtPath.Text))
@@ -617,13 +621,13 @@ public partial class AppEditForm : Form
         // OK / Cancel
         var btnOK = new Button
         {
-            Text = "确定", Location = new Point(356, 336), Size = new Size(88, 28),
+            Text = "确定", Location = new Point(376, 350), Size = new Size(88, 28),
             BackColor = Color.SteelBlue, ForeColor = Color.White,
         };
         btnOK.Click += (_, _) => Commit();
         Controls.Add(btnOK);
 
-        var btnCancel = new Button { Text = "取消", Location = new Point(456, 336), Size = new Size(88, 28) };
+        var btnCancel = new Button { Text = "取消", Location = new Point(476, 350), Size = new Size(88, 28) };
         btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
         Controls.Add(btnCancel);
     }
@@ -688,6 +692,11 @@ public partial class AppEditForm : Form
         if (string.IsNullOrEmpty(name))
         {
             MessageBox.Show(this, "请输入应用名称。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (_existingNames.Contains(name) && name != _source.Name)
+        {
+            MessageBox.Show(this, $"应用「{name}」已存在。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
         Result.Name = name;
