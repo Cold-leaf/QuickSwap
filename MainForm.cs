@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -105,23 +106,27 @@ public partial class MainForm : Form
 
     private void DiscoverApps()
     {
-        var folders = new[]
+        try
         {
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),
-            Environment.GetFolderPath(Environment.SpecialFolder.StartMenu),
-        };
-
-        foreach (var folder in folders)
-        {
-            if (!Directory.Exists(folder)) continue;
-            foreach (var lnk in Directory.GetFiles(folder, "*.lnk", SearchOption.AllDirectories))
+            var folders = new[]
             {
-                var name = Path.GetFileNameWithoutExtension(lnk);
-                var target = ResolveShortcut(lnk);
-                if (target != null && !_discovered.ContainsKey(name))
-                    _discovered[name] = target;
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),
+                Environment.GetFolderPath(Environment.SpecialFolder.StartMenu),
+            };
+
+            foreach (var folder in folders)
+            {
+                if (!Directory.Exists(folder)) continue;
+                foreach (var lnk in Directory.GetFiles(folder, "*.lnk", SearchOption.AllDirectories))
+                {
+                    var name = Path.GetFileNameWithoutExtension(lnk);
+                    var target = ResolveShortcut(lnk);
+                    if (target != null && !_discovered.ContainsKey(name))
+                        _discovered[name] = target;
+                }
             }
         }
+        catch { /* non-critical: discovery failure shouldn't crash the app */ }
     }
 
     private static string? ResolveShortcut(string lnkPath)
@@ -130,10 +135,12 @@ public partial class MainForm : Form
         {
             var t = Type.GetTypeFromCLSID(new Guid("72C24DD5-D70A-438B-8A42-98424B88AFB8"));
             if (t == null) return null;
-            dynamic shell = Activator.CreateInstance(t)!;
-            dynamic sc = shell.CreateShortcut(lnkPath);
-            string target = sc.TargetPath;
-            return File.Exists(target) ? target : null;
+            var shell = Activator.CreateInstance(t);
+            if (shell == null) return null;
+            var sc = t.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { lnkPath });
+            if (sc == null) return null;
+            var target = sc.GetType().InvokeMember("TargetPath", BindingFlags.GetProperty, null, sc, null) as string;
+            return !string.IsNullOrEmpty(target) && File.Exists(target) ? target : null;
         }
         catch { return null; }
     }

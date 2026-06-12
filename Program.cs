@@ -8,7 +8,15 @@ static class Program
     [STAThread]
     static void Main()
     {
-        ApplicationConfiguration.Initialize();
-        Application.Run(new MainForm());
+        try
+        {
+            ApplicationConfiguration.Initialize();
+            Application.Run(new MainForm());
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"启动失败:\n{ex}", "ModeSwitcher Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 }
