@@ -6,8 +6,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ApplicationIcon />
-    <AssemblyName>ModeSwitcher</AssemblyName>
-    <RootNamespace>ModeSwitcher</RootNamespace>
+    <AssemblyName>QuickSwap</AssemblyName>
+    <RootNamespace>QuickSwap</RootNamespace>
     <!-- single-file publish settings -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>

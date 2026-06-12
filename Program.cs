@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace ModeSwitcher;
+namespace QuickSwap;
 
 static class Program
 {

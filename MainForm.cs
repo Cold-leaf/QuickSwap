@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace ModeSwitcher;
+namespace QuickSwap;
 
 // ===================== Models =====================
 
@@ -49,7 +49,7 @@ public partial class MainForm : Form
         LoadConfig();
         DiscoverApps();
 
-        Text = "ModeSwitcher";
+        Text = "QuickSwap";
         Size = new Size(720, 500);
         MinimumSize = new Size(500, 340);
         StartPosition = FormStartPosition.CenterScreen;
