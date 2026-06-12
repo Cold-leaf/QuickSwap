@@ -442,6 +442,7 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
             var ok = await Task.Run(() => act(app));
             if (!ok) failed.Add(app.Name);
             _progress.Value = (i + 1) * 100 / apps.Count;
+            _progress.Refresh(); // force repaint
             await Task.Delay(300);
         }
 
