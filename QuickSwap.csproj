@@ -5,7 +5,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
-    <ApplicationIcon />
+    <ApplicationIcon>QuickSwap.ico</ApplicationIcon>
     <AssemblyName>QuickSwap</AssemblyName>
     <RootNamespace>QuickSwap</RootNamespace>
     <!-- single-file publish settings -->
