@@ -274,8 +274,19 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
 
         Controls.Add(_grid);
 
+        // -- progress bar (between grid and bottom buttons) --
+        _progress = new ProgressBar
+        {
+            Dock = DockStyle.Bottom,
+            Height = 10,
+            Style = ProgressBarStyle.Continuous,
+            Maximum = 100,
+            Visible = false,
+        };
+        Controls.Add(_progress);
+
         // -- bottom --
-        var botPanel = new Panel { Dock = DockStyle.Bottom, Height = 76, Padding = new Padding(pad) };
+        var botPanel = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(pad) };
 
         var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
         _addBtn = new Button { Text = "添加应用", Width = 88, Height = 28 };
@@ -292,11 +303,8 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
 
         botPanel.Controls.Add(btnPanel);
 
-        _statusLabel = new Label { Dock = DockStyle.Top, AutoSize = true, ForeColor = Color.Gray, Padding = new Padding(0, 4, 0, 0) };
+        _statusLabel = new Label { Dock = DockStyle.Top, AutoSize = true, ForeColor = Color.Gray, Padding = new Padding(0, 2, 0, 0) };
         botPanel.Controls.Add(_statusLabel);
-
-        _progress = new ProgressBar { Dock = DockStyle.Bottom, Height = 8, Style = ProgressBarStyle.Continuous, Maximum = 100, Visible = false };
-        botPanel.Controls.Add(_progress);
 
         Controls.Add(botPanel);
     }
