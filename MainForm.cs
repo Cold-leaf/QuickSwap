@@ -510,7 +510,6 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
     {
         if (string.IsNullOrEmpty(app.Process)) return false;
 
-        // normalize: taskkill /IM requires the .exe extension
         var imageName = app.Process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
             ? app.Process : app.Process + ".exe";
         var procName = Path.GetFileNameWithoutExtension(imageName);
@@ -522,43 +521,26 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
                 var procs = Process.GetProcessesByName(procName);
                 return procs.Length > 0 && procs.Any(p => { try { return !p.HasExited; } catch { return true; } });
             }
-            catch { return false; }
+            catch { return true; } // can't check → assume alive
         }
 
-        if (!StillAlive()) return true; // already dead
+        if (!StillAlive()) return true;
 
-        // capture PIDs for precise targeting in the final step
-        int[] GetPids()
-        {
-            try { return Process.GetProcessesByName(procName).Select(p => p.Id).ToArray(); }
-            catch { return []; }
-        }
-
-        // step 1: CloseMainWindow (gentle WM_CLOSE to main window)
+        // step 1: CloseMainWindow (gentle WM_CLOSE)
         foreach (var p in Process.GetProcessesByName(procName))
         {
             try { p.CloseMainWindow(); } catch { }
         }
-        for (int i = 0; i < 20; i++) { if (!StillAlive()) return true; Thread.Sleep(200); }
+        for (int i = 0; i < 15; i++) { if (!StillAlive()) return true; Thread.Sleep(200); }
 
-        // step 2: taskkill (WM_CLOSE to all windows)
-        try
+        // step 2: Process.Kill() (TerminateProcess API, may work when taskkill doesn't)
+        foreach (var p in Process.GetProcessesByName(procName))
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "taskkill",
-                Arguments = $"/IM \"{imageName}\" /T",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            using var p = Process.Start(psi);
-            p?.WaitForExit(5000);
+            try { if (!p.HasExited) p.Kill(); } catch { }
         }
-        catch { }
         for (int i = 0; i < 10; i++) { if (!StillAlive()) return true; Thread.Sleep(200); }
 
-        // step 3: taskkill /F (force + tree kill)
-        var pids = GetPids();
+        // step 3: taskkill /F /T
         try
         {
             var psi = new ProcessStartInfo
@@ -572,9 +554,10 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
             p?.WaitForExit(5000);
         }
         catch { }
+        for (int i = 0; i < 10; i++) { if (!StillAlive()) return true; Thread.Sleep(200); }
 
-        // step 4: if still alive, target each PID directly with /F
-        foreach (var pid in pids)
+        // step 4: taskkill by PID
+        foreach (var pid in GetPids())
         {
             if (!StillAlive()) return true;
             try
@@ -592,7 +575,32 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
             catch { }
         }
 
+        // step 5: PowerShell Stop-Process -Force (last resort)
+        foreach (var pid in GetPids())
+        {
+            if (!StillAlive()) return true;
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -Command \"Stop-Process -Id {pid} -Force -ErrorAction SilentlyContinue\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                using var p = Process.Start(psi);
+                p?.WaitForExit(5000);
+            }
+            catch { }
+        }
+
         return !StillAlive();
+
+        int[] GetPids()
+        {
+            try { return Process.GetProcessesByName(procName).Select(p => p.Id).ToArray(); }
+            catch { return []; }
+        }
     }
 
     private void SetStatus(string text)
