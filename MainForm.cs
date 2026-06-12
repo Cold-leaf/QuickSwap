@@ -207,9 +207,9 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
         var colCheck = new DataGridViewCheckBoxColumn
         {
             Name = "Check",
-            HeaderText = "",
-            Width = 30,
-            FillWeight = 5,
+            HeaderText = "✓",
+            Width = 40,
+            FillWeight = 8,
         };
         var colName = new DataGridViewTextBoxColumn
         {
@@ -234,6 +234,29 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
         };
 
         _grid.Columns.AddRange(colCheck, colName, colProc, colStatus);
+
+        // single-click checkbox toggle
+        _grid.CellContentClick += (_, e) =>
+        {
+            if (e.ColumnIndex == 0 && e.RowIndex >= 0)
+                _grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+        };
+        // commit immediately
+        _grid.CurrentCellDirtyStateChanged += (_, _) =>
+        {
+            if (_grid.IsCurrentCellDirty && _grid.CurrentCell.ColumnIndex == 0)
+                _grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+        };
+        // highlight checked rows
+        _grid.CellValueChanged += (_, e) =>
+        {
+            if (e.ColumnIndex == 0 && e.RowIndex >= 0)
+            {
+                var row = _grid.Rows[e.RowIndex];
+                var checked = (bool)(row.Cells["Check"].Value ?? false);
+                row.DefaultCellStyle.BackColor = checked ? Color.FromArgb(230, 247, 230) : Color.White;
+            }
+        };
         _grid.CellDoubleClick += (_, _) => EditSelectedApp();
         _grid.KeyDown += (s, e) =>
         {
@@ -281,8 +304,12 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
 
     private void SetAllChecked(bool check)
     {
+        var color = check ? Color.FromArgb(230, 247, 230) : Color.White;
         foreach (DataGridViewRow row in _grid.Rows)
+        {
             row.Cells["Check"].Value = check;
+            row.DefaultCellStyle.BackColor = color;
+        }
     }
 
     // ===================== Grid =====================
