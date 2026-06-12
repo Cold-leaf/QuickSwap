@@ -378,7 +378,7 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
         var selected = SelectedApps();
         if (selected.Count == 0) return;
         var names = string.Join("、", selected.Select(a => a.Name));
-        var ok = MessageBox.Show(this, $"确认删除「{names}」？", "确认",
+        var ok = MessageBox.Show(this, $"确认从列表删除 {names}？", "确认",
             MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
         if (ok != DialogResult.OK) return;
         foreach (var app in selected) _config.Apps.Remove(app);
