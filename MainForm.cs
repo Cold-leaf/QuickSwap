@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -108,41 +107,54 @@ public partial class MainForm : Form
     {
         try
         {
-            var folders = new[]
+            var tempFile = Path.GetTempFileName();
+            var psScript = @"
+$wsh = New-Object -ComObject WScript.Shell
+$results = @{}
+$paths = @(
+    [Environment]::GetFolderPath('CommonStartMenu'),
+    [Environment]::GetFolderPath('StartMenu')
+)
+foreach ($p in $paths) {
+    if (-not (Test-Path $p)) { continue }
+    Get-ChildItem -Path $p -Filter *.lnk -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            $target = $wsh.CreateShortcut($_.FullName).TargetPath
+            if ($target -and (Test-Path $target)) {
+                $results[$_.BaseName] = $target
+            }
+        } catch {}
+    }
+}
+$results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Replace("\\", "\\\\") + @"'
+";
+            var psi = new ProcessStartInfo
             {
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),
-                Environment.GetFolderPath(Environment.SpecialFolder.StartMenu),
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{psScript}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
             };
+            using var p = Process.Start(psi);
+            p?.WaitForExit(10000);
 
-            foreach (var folder in folders)
+            if (File.Exists(tempFile))
             {
-                if (!Directory.Exists(folder)) continue;
-                foreach (var lnk in Directory.GetFiles(folder, "*.lnk", SearchOption.AllDirectories))
+                var json = File.ReadAllText(tempFile);
+                if (!string.IsNullOrWhiteSpace(json))
                 {
-                    var name = Path.GetFileNameWithoutExtension(lnk);
-                    var target = ResolveShortcut(lnk);
-                    if (target != null && !_discovered.ContainsKey(name))
-                        _discovered[name] = target;
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                    if (dict != null)
+                    {
+                        foreach (var kv in dict)
+                            if (!_discovered.ContainsKey(kv.Key))
+                                _discovered[kv.Key] = kv.Value;
+                    }
                 }
+                try { File.Delete(tempFile); } catch { }
             }
         }
-        catch { /* non-critical: discovery failure shouldn't crash the app */ }
-    }
-
-    private static string? ResolveShortcut(string lnkPath)
-    {
-        try
-        {
-            var t = Type.GetTypeFromCLSID(new Guid("72C24DD5-D70A-438B-8A42-98424B88AFB8"));
-            if (t == null) return null;
-            var shell = Activator.CreateInstance(t);
-            if (shell == null) return null;
-            var sc = t.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { lnkPath });
-            if (sc == null) return null;
-            var target = sc.GetType().InvokeMember("TargetPath", BindingFlags.GetProperty, null, sc, null) as string;
-            return !string.IsNullOrEmpty(target) && File.Exists(target) ? target : null;
-        }
-        catch { return null; }
+        catch { /* non-critical */ }
     }
 
     // ===================== UI Construction =====================
