@@ -483,8 +483,12 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
 
         bool StillAlive()
         {
-            var procs = Process.GetProcessesByName(procName);
-            return procs.Any(p => !p.HasExited);
+            try
+            {
+                var procs = Process.GetProcessesByName(procName);
+                return procs.Any(p => { try { return !p.HasExited; } catch { return true; } });
+            }
+            catch { return true; }
         }
 
         if (!StillAlive()) return true; // already dead
