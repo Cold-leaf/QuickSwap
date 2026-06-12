@@ -147,14 +147,25 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
     {
         var pad = 12;
 
-        // -- top: action buttons --
+        var table = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 4,
+            Padding = new Padding(pad),
+        };
+        table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        table.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        // -- row 0: action buttons --
         var topPanel = new FlowLayoutPanel
         {
-            Dock = DockStyle.Top,
-            Padding = new Padding(pad, pad, pad, 6),
+            AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            AutoSize = true,
+            Margin = new Padding(0, 0, 0, 2),
         };
 
         _launchBtn = new Button
@@ -188,9 +199,9 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
         };
         topPanel.Controls.Add(tip);
 
-        Controls.Add(topPanel);
+        table.Controls.Add(topPanel, 0, 0);
 
-        // -- grid --
+        // -- row 1: grid --
         _grid = new DataGridView
         {
             Dock = DockStyle.Fill,
@@ -242,7 +253,6 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
             if (e.ColumnIndex == 0 && e.RowIndex >= 0)
                 _grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
-        // commit immediately
         _grid.CurrentCellDirtyStateChanged += (_, _) =>
         {
             if (_grid.IsCurrentCellDirty && _grid.CurrentCell.ColumnIndex == 0)
@@ -272,23 +282,34 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
             }
         };
 
-        Controls.Add(_grid);
+        table.Controls.Add(_grid, 0, 1);
 
-        // -- progress bar (between grid and bottom buttons) --
+        // -- row 2: progress bar --
         _progress = new ProgressBar
         {
-            Dock = DockStyle.Bottom,
+            Dock = DockStyle.Fill,
             Height = 10,
             Style = ProgressBarStyle.Continuous,
             Maximum = 100,
             Visible = false,
         };
-        Controls.Add(_progress);
+        table.Controls.Add(_progress, 0, 2);
 
-        // -- bottom --
-        var botPanel = new Panel { Dock = DockStyle.Bottom, Height = 68, Padding = new Padding(pad, pad, pad, 8) };
+        // -- row 3: bottom buttons + status --
+        var botPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            Margin = new Padding(0, 4, 0, 0),
+        };
 
-        var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
+        var btnPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+        };
         _addBtn = new Button { Text = "添加应用", Width = 88, Height = 28 };
         _addBtn.Click += (_, _) => AddApp();
         _deleteBtn = new Button { Text = "删除", Width = 64, Height = 28 };
@@ -303,10 +324,12 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
 
         botPanel.Controls.Add(btnPanel);
 
-        _statusLabel = new Label { Dock = DockStyle.Top, AutoSize = true, ForeColor = Color.Gray, Padding = new Padding(0, 2, 0, 0) };
+        _statusLabel = new Label { AutoSize = true, ForeColor = Color.Gray };
         botPanel.Controls.Add(_statusLabel);
 
-        Controls.Add(botPanel);
+        table.Controls.Add(botPanel, 0, 3);
+
+        Controls.Add(table);
     }
 
     private void SetAllChecked(bool check)
