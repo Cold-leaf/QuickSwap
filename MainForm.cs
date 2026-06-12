@@ -286,7 +286,7 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
         Controls.Add(_progress);
 
         // -- bottom --
-        var botPanel = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(pad) };
+        var botPanel = new Panel { Dock = DockStyle.Bottom, Height = 68, Padding = new Padding(pad, pad, pad, 8) };
 
         var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
         _addBtn = new Button { Text = "添加应用", Width = 88, Height = 28 };
