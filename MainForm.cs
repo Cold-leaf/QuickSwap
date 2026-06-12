@@ -509,34 +509,45 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
     private static bool CloseApp(AppEntry app)
     {
         if (string.IsNullOrEmpty(app.Process)) return false;
-        var procName = Path.GetFileNameWithoutExtension(app.Process);
+
+        // normalize: taskkill /IM requires the .exe extension
+        var imageName = app.Process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? app.Process : app.Process + ".exe";
+        var procName = Path.GetFileNameWithoutExtension(imageName);
 
         bool StillAlive()
         {
             try
             {
                 var procs = Process.GetProcessesByName(procName);
-                return procs.Any(p => { try { return !p.HasExited; } catch { return true; } });
+                return procs.Length > 0 && procs.Any(p => { try { return !p.HasExited; } catch { return true; } });
             }
-            catch { return true; }
+            catch { return false; }
         }
 
         if (!StillAlive()) return true; // already dead
+
+        // capture PIDs for precise targeting in the final step
+        int[] GetPids()
+        {
+            try { return Process.GetProcessesByName(procName).Select(p => p.Id).ToArray(); }
+            catch { return []; }
+        }
 
         // step 1: CloseMainWindow (gentle WM_CLOSE to main window)
         foreach (var p in Process.GetProcessesByName(procName))
         {
             try { p.CloseMainWindow(); } catch { }
         }
-        for (int i = 0; i < 30; i++) { if (!StillAlive()) return true; Thread.Sleep(200); }
+        for (int i = 0; i < 20; i++) { if (!StillAlive()) return true; Thread.Sleep(200); }
 
-        // step 2: taskkill /IM (WM_CLOSE to all windows, still gentle)
+        // step 2: taskkill (WM_CLOSE to all windows)
         try
         {
             var psi = new ProcessStartInfo
             {
                 FileName = "taskkill",
-                Arguments = $"/IM \"{app.Process}\"",
+                Arguments = $"/IM \"{imageName}\" /T",
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
@@ -544,22 +555,42 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
             p?.WaitForExit(5000);
         }
         catch { }
-        for (int i = 0; i < 15; i++) { if (!StillAlive()) return true; Thread.Sleep(200); }
+        for (int i = 0; i < 10; i++) { if (!StillAlive()) return true; Thread.Sleep(200); }
 
-        // step 3: taskkill /F (force — last resort)
+        // step 3: taskkill /F (force + tree kill)
+        var pids = GetPids();
         try
         {
             var psi = new ProcessStartInfo
             {
                 FileName = "taskkill",
-                Arguments = $"/F /IM \"{app.Process}\"",
+                Arguments = $"/F /IM \"{imageName}\" /T",
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
             using var p = Process.Start(psi);
-            p?.WaitForExit(3000);
+            p?.WaitForExit(5000);
         }
         catch { }
+
+        // step 4: if still alive, target each PID directly with /F
+        foreach (var pid in pids)
+        {
+            if (!StillAlive()) return true;
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "taskkill",
+                    Arguments = $"/F /PID {pid} /T",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                using var p = Process.Start(psi);
+                p?.WaitForExit(3000);
+            }
+            catch { }
+        }
 
         return !StillAlive();
     }
