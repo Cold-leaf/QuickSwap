@@ -560,6 +560,7 @@ public partial class AppEditForm : Form
     private ListBox _discoveredList = null!;
     private TextBox _txtName = null!, _txtPath = null!, _txtProcess = null!;
     private Button _btnBrowse = null!;
+    private SplitContainer _split = null!;
 
     public AppEntry Result { get; private set; } = new();
 
@@ -586,18 +587,15 @@ public partial class AppEditForm : Form
     {
         var pad = 12;
 
-        var split = new SplitContainer
+        _split = new SplitContainer
         {
             Dock = DockStyle.Fill,
-            SplitterDistance = 280,
             FixedPanel = FixedPanel.Panel1,
             IsSplitterFixed = true,
-            Panel1MinSize = 200,
-            Panel2MinSize = 200,
         };
 
         // left panel: discovered apps
-        var leftTop = split.Panel1;
+        var leftTop = _split.Panel1;
         leftTop.Padding = new Padding(pad);
         var lblLeft = new Label { Text = "从开始菜单选择（双击添加）：", AutoSize = true, Location = new Point(pad, pad) };
         _txtSearch = new TextBox
@@ -628,7 +626,7 @@ public partial class AppEditForm : Form
         };
 
         // right panel: manual fields
-        var right = split.Panel2;
+        var right = _split.Panel2;
         right.Padding = new Padding(pad);
         var y = pad;
         (_txtName, _) = AddFieldY(right, "名称：", ref y);
@@ -665,8 +663,14 @@ public partial class AppEditForm : Form
             btnCancel.Location = new Point(bottom.ClientSize.Width - pad * 2 - 88 * 2 - 8, 10);
         };
 
-        Controls.Add(split);
+        Controls.Add(_split);
         Controls.Add(bottom);
+
+        this.Load += (_, _) =>
+        {
+            if (_split.Width > 400)
+                _split.SplitterDistance = _split.Width * 3 / 5;
+        };
     }
 
     private static (TextBox, Label) AddFieldY(Control parent, string label, ref int y, string? placeholder = null)
