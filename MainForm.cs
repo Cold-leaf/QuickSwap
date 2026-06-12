@@ -131,7 +131,7 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
                     if (dict != null)
                     {
                         foreach (var kv in dict)
-                            if (!_discovered.ContainsKey(kv.Key))
+                            if (!_discovered.ContainsKey(kv.Key) && !kv.Key.Contains("卸载"))
                                 _discovered[kv.Key] = kv.Value;
                     }
                 }
@@ -617,13 +617,13 @@ public partial class AppEditForm : Form
         // OK / Cancel
         var btnOK = new Button
         {
-            Text = "确定", Location = new Point(356, 316), Size = new Size(80, 28),
+            Text = "确定", Location = new Point(356, 316), Size = new Size(88, 28),
             BackColor = Color.SteelBlue, ForeColor = Color.White,
         };
         btnOK.Click += (_, _) => Commit();
         Controls.Add(btnOK);
 
-        var btnCancel = new Button { Text = "取消", Location = new Point(446, 316), Size = new Size(80, 28) };
+        var btnCancel = new Button { Text = "取消", Location = new Point(456, 316), Size = new Size(88, 28) };
         btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
         Controls.Add(btnCancel);
     }
@@ -648,6 +648,7 @@ public partial class AppEditForm : Form
         _discoveredList.Items.Clear();
         foreach (var kv in _discovered.OrderBy(k => k.Key))
         {
+            if (kv.Key.Contains("卸载")) continue;
             if (string.IsNullOrEmpty(filter) || kv.Key.Contains(filter, StringComparison.OrdinalIgnoreCase))
                 _discoveredList.Items.Add(kv);
         }
