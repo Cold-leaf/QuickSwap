@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -471,42 +472,54 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
     {
         if (string.IsNullOrEmpty(app.Process)) return false;
         var procName = Path.GetFileNameWithoutExtension(app.Process);
-        // try CloseMainWindow first (most gentle)
-        var procs = Process.GetProcessesByName(procName);
-        var anyAlive = false;
-        foreach (var p in procs)
+
+        bool StillAlive()
         {
-            try
-            {
-                if (p.HasExited) continue;
-                p.CloseMainWindow();
-                p.WaitForExit(3000);
-                if (!p.HasExited) anyAlive = true;
-            }
-            catch { anyAlive = true; }
+            var procs = Process.GetProcessesByName(procName);
+            return procs.Any(p => !p.HasExited);
         }
 
-        // if still running, use taskkill /IM (also gentle, but reaches all windows)
-        if (anyAlive)
-        {
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "taskkill",
-                    Arguments = $"/IM \"{app.Process}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                };
-                using var p = Process.Start(psi);
-                p?.WaitForExit(8000);
-            }
-            catch { }
-        }
+        if (!StillAlive()) return true; // already dead
 
-        // check if anything is still alive
-        var remaining = Process.GetProcessesByName(procName);
-        return remaining.Length == 0;
+        // step 1: CloseMainWindow (gentle WM_CLOSE to main window)
+        foreach (var p in Process.GetProcessesByName(procName))
+        {
+            try { p.CloseMainWindow(); } catch { }
+        }
+        for (int i = 0; i < 30; i++) { if (!StillAlive()) return true; Thread.Sleep(200); }
+
+        // step 2: taskkill /IM (WM_CLOSE to all windows, still gentle)
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "taskkill",
+                Arguments = $"/IM \"{app.Process}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using var p = Process.Start(psi);
+            p?.WaitForExit(5000);
+        }
+        catch { }
+        for (int i = 0; i < 15; i++) { if (!StillAlive()) return true; Thread.Sleep(200); }
+
+        // step 3: taskkill /F (force — last resort)
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "taskkill",
+                Arguments = $"/F /IM \"{app.Process}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using var p = Process.Start(psi);
+            p?.WaitForExit(3000);
+        }
+        catch { }
+
+        return !StillAlive();
     }
 
     private void SetStatus(string text)
