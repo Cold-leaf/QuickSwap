@@ -586,58 +586,105 @@ public partial class AppEditForm : Form
     {
         var pad = 12;
 
-        // left: discovered apps
-        var left = new Panel { Dock = DockStyle.Left, Width = 280, Padding = new Padding(pad, pad, 6, 0) };
-        var lblLeft = new Label { Text = "从开始菜单选择（双击添加）：", AutoSize = true, Dock = DockStyle.Top };
-        left.Controls.Add(lblLeft);
-        _txtSearch = new TextBox { Dock = DockStyle.Top, PlaceholderText = "输入关键词过滤..." };
-        _txtSearch.TextChanged += (_, _) => FilterDiscovered();
-        left.Controls.Add(_txtSearch);
-        _discoveredList = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, DisplayMember = "Key" };
-        _discoveredList.MouseDoubleClick += (_, _) => PickDiscovered();
-        left.Controls.Add(_discoveredList);
-        FillDiscovered("");
+        var split = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            SplitterDistance = 280,
+            FixedPanel = FixedPanel.Panel1,
+            IsSplitterFixed = true,
+            Panel1MinSize = 200,
+            Panel2MinSize = 200,
+        };
 
-        // right: manual fields
-        var right = new Panel { Dock = DockStyle.Fill, Padding = new Padding(6, pad, pad, 0) };
-        (_txtName, _) = AddDockedField(right, "名称：", 0);
-        var pathRow = AddDockedField(right, "路径：", 56);
-        _txtPath = pathRow.tb;
-        _btnBrowse = new Button { Text = "...", Location = new Point(pathRow.panel.Width - 34, 0), Width = 30, Height = 23, Anchor = AnchorStyles.Top | AnchorStyles.Right };
-        pathRow.panel.Controls.Add(_btnBrowse);
-        (_txtProcess, _) = AddDockedField(right, "进程名：", 112, "如 Steam.exe");
+        // left panel: discovered apps
+        var leftTop = split.Panel1;
+        leftTop.Padding = new Padding(pad);
+        var lblLeft = new Label { Text = "从开始菜单选择（双击添加）：", AutoSize = true, Location = new Point(pad, pad) };
+        _txtSearch = new TextBox
+        {
+            Location = new Point(pad, lblLeft.Bottom + 4),
+            Width = leftTop.ClientSize.Width - pad * 2,
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            PlaceholderText = "输入关键词过滤...",
+        };
+        _txtSearch.TextChanged += (_, _) => FilterDiscovered();
+        _discoveredList = new ListBox
+        {
+            Location = new Point(pad, _txtSearch.Bottom + 4),
+            IntegralHeight = false,
+            DisplayMember = "Key",
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+        };
+        _discoveredList.MouseDoubleClick += (_, _) => PickDiscovered();
+        leftTop.Controls.Add(lblLeft);
+        leftTop.Controls.Add(_txtSearch);
+        leftTop.Controls.Add(_discoveredList);
+        FillDiscovered("");
+        leftTop.Layout += (_, _) =>
+        {
+            _discoveredList.Width = leftTop.ClientSize.Width - pad * 2;
+            _discoveredList.Height = leftTop.ClientSize.Height - _discoveredList.Top - pad;
+            _txtSearch.Width = leftTop.ClientSize.Width - pad * 2;
+        };
+
+        // right panel: manual fields
+        var right = split.Panel2;
+        right.Padding = new Padding(pad);
+        var y = pad;
+        (_txtName, _) = AddFieldY(right, "名称：", ref y);
+        (_txtPath, _) = AddFieldY(right, "路径：", ref y);
+        _btnBrowse = new Button { Text = "...", Size = new Size(30, 23), Location = new Point(right.ClientSize.Width - pad - 34, _txtPath.Location.Y) };
+        _btnBrowse.Click += (_, _) => BrowsePath();
+        right.Controls.Add(_btnBrowse);
+        (_txtProcess, _) = AddFieldY(right, "进程名：", ref y, "如 Steam.exe");
         _txtPath.TextChanged += (_, _) =>
         {
             if (string.IsNullOrEmpty(_txtProcess.Text) && !string.IsNullOrEmpty(_txtPath.Text))
                 _txtProcess.Text = Path.GetFileName(_txtPath.Text);
         };
+        right.Layout += (_, _) =>
+        {
+            _btnBrowse.Location = new Point(right.ClientSize.Width - pad - 34, _txtPath.Location.Y);
+        };
 
         // bottom: buttons
-        var bottom = new Panel { Dock = DockStyle.Bottom, Height = 52, Padding = new Padding(pad, 8, pad, pad) };
+        var bottom = new Panel { Dock = DockStyle.Bottom, Height = 48 };
         var btnOK = new Button
         {
-            Text = "确定", Size = new Size(88, 28), Dock = DockStyle.Right, Margin = new Padding(8, 0, 0, 0),
+            Text = "确定", Size = new Size(88, 28),
             BackColor = Color.SteelBlue, ForeColor = Color.White,
         };
         btnOK.Click += (_, _) => Commit();
         bottom.Controls.Add(btnOK);
-        var btnCancel = new Button { Text = "取消", Size = new Size(88, 28), Dock = DockStyle.Right };
+        var btnCancel = new Button { Text = "取消", Size = new Size(88, 28) };
         btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
         bottom.Controls.Add(btnCancel);
+        bottom.Layout += (_, _) =>
+        {
+            btnOK.Location = new Point(bottom.ClientSize.Width - pad - 88, 10);
+            btnCancel.Location = new Point(bottom.ClientSize.Width - pad * 2 - 88 * 2 - 8, 10);
+        };
 
-        Controls.Add(right);
-        Controls.Add(left);
+        Controls.Add(split);
         Controls.Add(bottom);
     }
 
-    private static (TextBox tb, Panel panel) AddDockedField(Control parent, string label, int y, string? placeholder = null)
+    private static (TextBox, Label) AddFieldY(Control parent, string label, ref int y, string? placeholder = null)
     {
-        var panel = new Panel { Location = new Point(0, y), Size = new Size(parent.Width - 12, 46), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
-        panel.Controls.Add(new Label { Text = label, AutoSize = true, Location = new Point(0, 0) });
-        var tb = new TextBox { Location = new Point(0, 20), Width = panel.Width - 38, PlaceholderText = placeholder, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
-        panel.Controls.Add(tb);
-        parent.Controls.Add(panel);
-        return (tb, panel);
+        var pad = 12;
+        var lbl = new Label { Text = label, AutoSize = true, Location = new Point(pad, y) };
+        parent.Controls.Add(lbl);
+        y = lbl.Bottom + 2;
+        var tb = new TextBox
+        {
+            Location = new Point(pad, y),
+            Width = parent.ClientSize.Width - pad * 2 - 40,
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            PlaceholderText = placeholder,
+        };
+        parent.Controls.Add(tb);
+        y = tb.Bottom + 10;
+        return (tb, lbl);
     }
 
     private void FillFrom(AppEntry a)
