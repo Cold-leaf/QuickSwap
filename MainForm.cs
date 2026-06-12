@@ -562,7 +562,7 @@ public partial class AppEditForm : Form
         Result = new AppEntry { Name = _source.Name, Path = _source.Path, Process = _source.Process };
 
         Text = source == null ? "添加应用" : "编辑应用";
-        Size = new Size(560, 380);
+        Size = new Size(560, 420);
         StartPosition = FormStartPosition.CenterParent;
         Font = new Font("Microsoft YaHei UI", 9F);
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -617,13 +617,13 @@ public partial class AppEditForm : Form
         // OK / Cancel
         var btnOK = new Button
         {
-            Text = "确定", Location = new Point(356, 316), Size = new Size(88, 28),
+            Text = "确定", Location = new Point(356, 336), Size = new Size(88, 28),
             BackColor = Color.SteelBlue, ForeColor = Color.White,
         };
         btnOK.Click += (_, _) => Commit();
         Controls.Add(btnOK);
 
-        var btnCancel = new Button { Text = "取消", Location = new Point(456, 316), Size = new Size(88, 28) };
+        var btnCancel = new Button { Text = "取消", Location = new Point(456, 336), Size = new Size(88, 28) };
         btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
         Controls.Add(btnCancel);
     }
