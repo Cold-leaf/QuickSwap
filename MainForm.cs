@@ -36,7 +36,7 @@ public partial class MainForm : Form
 
     private Button _launchBtn = null!, _closeBtn = null!;
     private DataGridView _grid = null!;
-    private Button _addBtn = null!, _editBtn = null!, _deleteBtn = null!;
+    private Button _addBtn = null!, _deleteBtn = null!;
     private ProgressBar _progress = null!;
     private Label _statusLabel = null!;
     private System.Windows.Forms.Timer _statusTimer = null!;
@@ -280,11 +280,9 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
         var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
         _addBtn = new Button { Text = "添加应用", Width = 88, Height = 28 };
         _addBtn.Click += (_, _) => AddApp();
-        _editBtn = new Button { Text = "编辑", Width = 64, Height = 28 };
-        _editBtn.Click += (_, _) => EditSelectedApp();
         _deleteBtn = new Button { Text = "删除", Width = 64, Height = 28 };
         _deleteBtn.Click += (_, _) => DeleteSelectedApp();
-        btnPanel.Controls.AddRange([_addBtn, _editBtn, _deleteBtn]);
+        btnPanel.Controls.AddRange([_addBtn, _deleteBtn]);
 
         var selectAll = new Button { Text = "全选", Width = 64, Height = 28 };
         selectAll.Click += (_, _) => SetAllChecked(true);
@@ -297,7 +295,7 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
         _statusLabel = new Label { Dock = DockStyle.Top, AutoSize = true, ForeColor = Color.Gray, Padding = new Padding(0, 4, 0, 0) };
         botPanel.Controls.Add(_statusLabel);
 
-        _progress = new ProgressBar { Dock = DockStyle.Bottom, Height = 6, Style = ProgressBarStyle.Marquee, Maximum = 100, Visible = false };
+        _progress = new ProgressBar { Dock = DockStyle.Bottom, Height = 8, Style = ProgressBarStyle.Continuous, Maximum = 100, Visible = false };
         botPanel.Controls.Add(_progress);
 
         Controls.Add(botPanel);
@@ -433,16 +431,17 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
     {
         _launchBtn.Enabled = false;
         _closeBtn.Enabled = false;
+        _progress.Value = 0;
         _progress.Visible = true;
-        _progress.Style = ProgressBarStyle.Marquee;
 
         var failed = new List<string>();
         for (int i = 0; i < apps.Count; i++)
         {
             var app = apps[i];
-            SetStatus($"正在{action} {app.Name}...");
+            SetStatus($"正在{action} {app.Name}...  ({i + 1}/{apps.Count})");
             var ok = await Task.Run(() => act(app));
             if (!ok) failed.Add(app.Name);
+            _progress.Value = (i + 1) * 100 / apps.Count;
             await Task.Delay(300);
         }
 
