@@ -253,8 +253,8 @@ $results | ConvertTo-Json -Compress | Out-File -Encoding UTF8 '" + tempFile.Repl
             if (e.ColumnIndex == 0 && e.RowIndex >= 0)
             {
                 var row = _grid.Rows[e.RowIndex];
-                var checked = (bool)(row.Cells["Check"].Value ?? false);
-                row.DefaultCellStyle.BackColor = checked ? Color.FromArgb(230, 247, 230) : Color.White;
+                var isChecked = (bool)(row.Cells["Check"].Value ?? false);
+                row.DefaultCellStyle.BackColor = isChecked ? Color.FromArgb(230, 247, 230) : Color.White;
             }
         };
         _grid.CellDoubleClick += (_, _) => EditSelectedApp();
